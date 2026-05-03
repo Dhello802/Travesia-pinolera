@@ -33,13 +33,10 @@
         .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; }
         .suggestion-item:hover { background: #eff6ff; }
         .countdown-number { background: #1e293b; color: white; padding: 0.3rem 0.6rem; border-radius: 0.4rem; font-weight: 700; }
-        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
         .payment-step { display: none; }
         .payment-step.active { display: block; }
-        .step-indicator { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
         .step-dot { width: 12px; height: 12px; border-radius: 50%; background: #e2e8f0; }
         .step-dot.active { background: #2563eb; }
-        .results-container { margin-top: 1.5rem; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -107,14 +104,14 @@
                 <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-lock text-green-600 mr-2"></i>Pasarela de Pago Segura</h3>
                 <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
-            <div class="step-indicator">
+            <div class="flex gap-2 mb-4" id="step-indicators">
                 <span class="step-dot active" id="step-dot-1"></span>
                 <span class="step-dot" id="step-dot-2"></span>
                 <span class="step-dot" id="step-dot-3"></span>
             </div>
             <div id="payment-steps">
                 <div class="payment-step active" data-step="1">
-                    <h4 class="font-bold text-lg mb-4">Datos del Pasajero Principal</h4>
+                    <h4 class="font-bold text-lg mb-4">Datos del Comprador</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-medium mb-1">Nombre</label><input type="text" id="pay-name" class="w-full border rounded-lg p-3"></div>
                         <div><label class="block text-sm font-medium mb-1">Apellido</label><input type="text" id="pay-last" class="w-full border rounded-lg p-3"></div>
@@ -126,12 +123,8 @@
                 <div class="payment-step" data-step="2">
                     <h4 class="font-bold text-lg mb-4">Método de Pago</h4>
                     <div class="space-y-3">
-                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"><input type="radio" name="payment-method" value="card" checked class="mr-3"> <i class="far fa-credit-card text-2xl mr-3"></i> Tarjeta de crédito/débito</label>
-                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"><input type="radio" name="payment-method" value="paypal" class="mr-3"> <i class="fab fa-paypal text-2xl mr-3 text-blue-800"></i> PayPal</label>
-                    </div>
-                    <div id="card-details" class="mt-4 space-y-3">
-                        <div><label class="block text-sm font-medium mb-1">Número de tarjeta</label><input type="text" placeholder="1234 5678 9012 3456" class="w-full border rounded-lg p-3"></div>
-                        <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-medium mb-1">Vencimiento</label><input type="text" placeholder="MM/AA" class="w-full border rounded-lg p-3"></div><div><label class="block text-sm font-medium mb-1">CVV</label><input type="text" placeholder="123" class="w-full border rounded-lg p-3"></div></div>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"><input type="radio" name="pay-method" value="card" checked class="mr-3"> <i class="far fa-credit-card text-2xl mr-3"></i> Tarjeta</label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"><input type="radio" name="pay-method" value="paypal" class="mr-3"> <i class="fab fa-paypal text-2xl mr-3 text-blue-800"></i> PayPal</label>
                     </div>
                     <div class="mt-6 flex items-center bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                         <input type="checkbox" id="terms-check-payment" class="mr-3 h-5 w-5">
@@ -147,14 +140,14 @@
                 <div class="payment-step text-center" data-step="4">
                     <i class="fas fa-check-circle text-green-500 text-6xl mb-4"></i>
                     <h4 class="text-2xl font-bold mb-2">¡Compra Exitosa!</h4>
-                    <p class="text-gray-600 mb-4" id="success-email-msg">Hemos enviado los boletos digitales a tu correo electrónico.</p>
+                    <p class="text-gray-600 mb-4" id="success-email-msg">Hemos enviado los comprobantes a tu correo electrónico.</p>
                     <button onclick="closePaymentModal(); navigateTo('inicio')" class="mt-6 bg-blue-600 text-white px-8 py-3 rounded-lg font-bold">Volver al inicio</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Contenido dinámico -->
+    <!-- Contenido principal -->
     <div id="app-content" class="flex-grow"></div>
 
     <!-- Footer -->
@@ -172,11 +165,11 @@
     </footer>
 
     <script>
-        // Estado global
+        // ============ DATOS ============
         const APP = {
             currentPage: 'inicio',
-            searchResults: null,
-            selectedFlight: null,
+            searchResults: [],
+            selectedProduct: null,
             citySuggestions: [
                 "Managua - Augusto C. Sandino (MGA), Nicaragua",
                 "San José - Juan Santamaría (SJO), Costa Rica",
@@ -195,25 +188,57 @@
                 "Ciudad de Guatemala - La Aurora (GUA), Guatemala",
                 "Miami (MIA), Estados Unidos"
             ],
+            mockAirlines: [
+                {name:"Avianca",code:"AV"}, {name:"Copa Airlines",code:"CM"}, {name:"LATAM Airlines",code:"LA"},
+                {name:"Volaris",code:"Y4"}, {name:"Aeroméxico",code:"AM"}
+            ],
             mockHotels: [
-                {name:"Hotel Real Colonial", stars:4, price:85, location:"Managua"},
-                {name:"Beach Resort Cancún", stars:5, price:210, location:"Cancún"},
-                {name:"Andes Lodge Cusco", stars:3, price:55, location:"Cusco"},
-                {name:"Panamá City Suites", stars:4, price:120, location:"Panamá"},
-                {name:"Bogotá Plaza Hotel", stars:4, price:95, location:"Bogotá"}
+                {name:"Hotel Real Colonial", stars:4, price:85, location:"Managua", img:"https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=400&q=80"},
+                {name:"Beach Resort Cancún", stars:5, price:210, location:"Cancún", img:"https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80"},
+                {name:"Andes Lodge Cusco", stars:3, price:55, location:"Cusco", img:"https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&q=80"},
+                {name:"Panamá City Suites", stars:4, price:120, location:"Panamá", img:"https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80"},
+                {name:"Bogotá Plaza Hotel", stars:4, price:95, location:"Bogotá", img:"https://images.unsplash.com/photo-1563911302283-d2bc129e7570?w=400&q=80"},
+                {name:"Marriott Panamá", stars:5, price:180, location:"Panamá", img:"https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&q=80"},
+                {name:"Hotel El Conquistador", stars:4, price:110, location:"Santiago", img:"https://images.unsplash.com/photo-1535827841776-24afc1e255ac?w=400&q=80"},
+                {name:"Lima Colonial Inn", stars:3, price:65, location:"Lima", img:"https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&q=80"}
             ],
             mockCars: [
                 {model:"Toyota Corolla", type:"Económico", pricePerDay:35},
                 {model:"Hyundai Tucson", type:"SUV", pricePerDay:55},
                 {model:"BMW Serie 3", type:"Lujo", pricePerDay:110}
+            ],
+            allPackages: [
+                { id:1, name:"Aventura en Ometepe", country:"Nicaragua", desc:"Descubre la magia de la Isla de Ometepe, con sus dos imponentes volcanes, playas de arena negra y exuberante naturaleza.", includes:["Transporte aéreo ida y vuelta","Hotel 3 noches","Tour guiado a los volcanes","Alimentación incluida"], price:120, img:"https://images.unsplash.com/photo-1533604131587-32c294752e83?w=600&q=80" },
+                { id:2, name:"Paraíso Cancún", country:"México", desc:"Vive la experiencia caribeña en Cancún: playas de aguas turquesa, ruinas mayas y una vibrante vida nocturna.", includes:["Vuelo directo","Hotel 5 estrellas 4 noches","Acceso a parques temáticos","Traslados aeropuerto-hotel"], price:350, img:"https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?w=600&q=80" },
+                { id:3, name:"Misterios de Machu Picchu", country:"Perú", desc:"Sumérgete en la cultura inca con una visita guiada a la majestuosa ciudadela de Machu Picchu.", includes:["Vuelos internacionales","Hotel 4 noches en Cusco","Tour a Machu Picchu","Guía profesional"], price:580, img:"https://images.unsplash.com/photo-1526392060635-9d6019884377?w=600&q=80" },
+                { id:4, name:"Cartagena Colonial", country:"Colombia", desc:"Recorre las calles llenas de historia de Cartagena de Indias y las paradisíacas Islas del Rosario.", includes:["Vuelo directo","Hotel boutique 3 noches","City tour","Paseo en barco"], price:290, img:"https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=600&q=80" },
+                { id:5, name:"Aventura Patagonia", country:"Argentina", desc:"Explora los glaciares, montañas y lagos de la Patagonia argentina.", includes:["Vuelos internos","Alojamiento 5 noches","Excursiones guiadas","Equipo de trekking"], price:720, img:"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22?w=600&q=80" }
+            ],
+            communityPosts: [
+                {user:"Juan Pérez",initials:"JP",color:"blue",loc:"San Juan del Sur, Nicaragua",img:"https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=1200&q=80",text:"¡Increíble atardecer! Reservé el tour de ballenas con LATAM with you y todo fue perfecto.",stars:5,likes:24},
+                {user:"María Castro",initials:"MC",color:"green",loc:"Machu Picchu, Perú",img:"https://images.unsplash.com/photo-1526392060635-9d6019884377?w=1200&q=80",text:"Sueño cumplido. Encontré vuelo directo desde Managua a excelente precio.",stars:4,likes:56},
+                {user:"Carlos López",initials:"CL",color:"indigo",loc:"Cancún, México",img:"https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?w=1200&q=80",text:"Las playas de Cancún son otro nivel. El paquete Todo Incluido lo hizo fácil.",stars:5,likes:32},
+                {user:"Ana Ruiz",initials:"AR",color:"pink",loc:"Cartagena, Colombia",img:"https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=1200&q=80",text:"Cartagena es mágica. El city tour reservado aquí fue excelente.",stars:5,likes:18},
+                {user:"Pedro Gómez",initials:"PG",color:"yellow",loc:"Bogotá, Colombia",img:"https://images.unsplash.com/photo-1563911302283-d2bc129e7570?w=1200&q=80",text:"La gastronomía bogotana me encantó. Reservé hotel con descuento.",stars:4,likes:15},
+                {user:"Laura Díaz",initials:"LD",color:"purple",loc:"Lima, Perú",img:"https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80",text:"Lima es una delicia. LATAM with you me ayudó a encontrar el mejor vuelo.",stars:5,likes:41},
+                {user:"Sofía Vargas",initials:"SV",color:"red",loc:"Santiago, Chile",img:"https://images.unsplash.com/photo-1535827841776-24afc1e255ac?w=1200&q=80",text:"Santiago me sorprendió con sus montañas. Todo organizado perfecto.",stars:4,likes:28},
+                {user:"Diego Mora",initials:"DM",color:"teal",loc:"Panamá",img:"https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1200&q=80",text:"El Canal de Panamá es imponente. Hotel céntrico recomendado.",stars:5,likes:37},
+                {user:"Elena Torres",initials:"ET",color:"orange",loc:"Cusco, Perú",img:"https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=1200&q=80",text:"Machu Picchu fue espiritual. El paquete incluía todo, hasta guía.",stars:5,likes:63},
+                {user:"Ricardo Soto",initials:"RS",color:"cyan",loc:"Buenos Aires, Argentina",img:"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22?w=1200&q=80",text:"Buenos Aires tiene cultura y tango. Vuelo directo encontrado.",stars:4,likes:22},
+                {user:"Mónica Herrera",initials:"MH",color:"lime",loc:"Medellín, Colombia",img:"https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=1200&q=80",text:"Medellín es innovadora. El hotel reservado tenía vista increíble.",stars:5,likes:19},
+                {user:"Andrés León",initials:"AL",color:"amber",loc:"Punta Cana, RD",img:"https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1200&q=80",text:"Punta Cana, paraíso puro. El paquete incluía vuelo y resort.",stars:5,likes:45},
+                {user:"Valeria Ríos",initials:"VR",color:"fuchsia",loc:"San José, Costa Rica",img:"https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=80",text:"Costa Rica verde y sostenible. Tour de canopy recomendado.",stars:4,likes:30},
+                {user:"Jorge Castillo",initials:"JC",color:"emerald",loc:"Santiago, Chile",img:"https://images.unsplash.com/photo-1535827841776-24afc1e255ac?w=1200&q=80",text:"Los Andes nevados desde Santiago. Excelente planificación.",stars:5,likes:25},
+                {user:"Camila Ortiz",initials:"CO",color:"violet",loc:"La Habana, Cuba",img:"https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=1200&q=80",text:"La Habana es única, llena de historia y música. Vuelo económico.",stars:4,likes:21},
+                {user:"Fernando Paz",initials:"FP",color:"rose",loc:"Ciudad de México",img:"https://images.unsplash.com/photo-1563911302283-d2bc129e7570?w=1200&q=80",text:"CDMX es gigante y cultural. Reservé con puntos LATAM.",stars:5,likes:33},
+                {user:"Lucía Blanco",initials:"LB",color:"sky",loc:"Guatemala",img:"https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1200&q=80",text:"Antigua Guatemala es colonial y hermosa. Todo salió bien.",stars:5,likes:27},
+                {user:"Héctor Núñez",initials:"HN",color:"indigo",loc:"El Salvador",img:"https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=80",text:"Surf en El Salvador, una joya. Vuelos baratos con LATAM.",stars:4,likes:16},
+                {user:"Adriana Mejía",initials:"AM",color:"pink",loc:"Tegucigalpa, Honduras",img:"https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80",text:"Honduras tiene ruinas mayas espectaculares. Buena organización.",stars:5,likes:20},
+                {user:"Roberto Vargas",initials:"RV",color:"blue",loc:"Managua, Nicaragua",img:"https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=1200&q=80",text:"Managua moderna y con historia. Encontré hotel céntrico buenísimo.",stars:4,likes:13}
             ]
         };
 
-        const mockAirlines = [
-            {name:"Avianca",code:"AV"}, {name:"Copa Airlines",code:"CM"}, {name:"LATAM Airlines",code:"LA"},
-            {name:"Volaris",code:"Y4"}, {name:"Aeroméxico",code:"AM"}, {name:"Interjet",code:"IJ"}
-        ];
-
+        // ============ NAVEGACIÓN ============
         function navigateTo(page) {
             APP.currentPage = page;
             document.getElementById('mobile-menu')?.classList.add('hidden');
@@ -222,14 +247,14 @@
         }
 
         function renderPage() {
-            const container = document.getElementById('app-content');
+            const c = document.getElementById('app-content');
             switch(APP.currentPage) {
-                case 'inicio': container.innerHTML = getHomeHTML(); initHome(); break;
-                case 'explorar': container.innerHTML = getExplorarHTML(); break;
-                case 'comunidad': container.innerHTML = getComunidadHTML(); break;
-                case 'paquetes': container.innerHTML = getPaquetesHTML(); initCountdowns(); break;
-                case 'contacto': container.innerHTML = getContactoHTML(); initChat(); break;
-                default: container.innerHTML = getHomeHTML(); initHome();
+                case 'inicio': c.innerHTML = getHomeHTML(); initHome(); break;
+                case 'explorar': c.innerHTML = getExplorarHTML(); break;
+                case 'comunidad': c.innerHTML = getComunidadHTML(); break;
+                case 'paquetes': c.innerHTML = getPaquetesHTML(); initCountdowns(); break;
+                case 'contacto': c.innerHTML = getContactoHTML(); initChat(); break;
+                default: c.innerHTML = getHomeHTML(); initHome();
             }
         }
 
@@ -248,75 +273,47 @@
                         <button class="tab-btn text-gray-500 hover:text-blue-600 font-medium pb-2 whitespace-nowrap transition" data-tab="autos"><i class="fas fa-car mr-2"></i>Autos</button>
                     </div>
                     <div id="search-form-content"></div>
-                    <div id="search-results" class="results-container hidden"></div>
+                    <div id="search-results" class="results-container hidden mt-6"></div>
                 </div>
             </header>
             <main class="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <section class="lg:col-span-2">${communitySection()}</section>
-                <aside class="space-y-8">${homeSidebar()}</aside>
+                <section class="lg:col-span-2">${communitySectionHTML()}</section>
+                <aside class="space-y-8">${homeSidebarHTML()}</aside>
             </main>
-            <section class="max-w-7xl mx-auto px-4 pb-12">${ofertasFlash()}</section>`;
+            <section class="max-w-7xl mx-auto px-4 pb-12">${ofertasFlashHTML()}</section>`;
         }
 
-        function communitySection() {
-            return `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">🌎 Comunidad <span class="text-blue-600">Travesía Pinolera</span></h2><a href="#" onclick="navigateTo('comunidad')" class="text-blue-600 font-semibold hover:underline text-sm">Ver comunidad →</a></div><div class="space-y-8">${communityPosts()}</div>`;
+        function communitySectionHTML() {
+            return `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">🌎 Comunidad <span class="text-blue-600">Travesía Pinolera</span></h2><a href="#" onclick="navigateTo('comunidad')" class="text-blue-600 font-semibold hover:underline text-sm">Ver toda la comunidad →</a></div><div class="space-y-6">${APP.communityPosts.slice(0,4).map(p=>postHTML(p)).join('')}</div>`;
         }
 
-        function communityPosts() {
-            return `
-            <article class="bg-white rounded-2xl shadow-sm border overflow-hidden social-post card-hover">
-                <div class="p-4 flex justify-between"><div class="flex items-center space-x-3"><div class="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600">JP</div><div><p class="font-bold">Juan Pérez</p><p class="text-xs text-gray-500">San Juan del Sur, Nicaragua</p></div></div><div class="text-yellow-400"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div></div>
-                <div class="h-64 overflow-hidden"><img src="https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=1200&q=80" alt="San Juan" class="w-full h-full object-cover"></div>
-                <div class="p-5"><p class="text-sm mb-4">"¡Atardecer increíble! Reservé tour de ballenas con LATAM with you."</p><div class="flex text-gray-500 text-sm border-t pt-3"><button onclick="toggleLike(this)" class="hover:text-red-500"><i class="far fa-heart mr-1"></i><span>24</span></button><span class="ml-4"><i class="far fa-comment mr-1"></i>8</span></div></div>
-            </article>
-            <article class="bg-white rounded-2xl shadow-sm border overflow-hidden social-post card-hover">
-                <div class="p-4 flex justify-between"><div class="flex items-center space-x-3"><div class="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-600">MC</div><div><p class="font-bold">María Castro</p><p class="text-xs text-gray-500">Machu Picchu, Perú</p></div></div><div class="text-yellow-400"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="far fa-star"></i></div></div>
-                <div class="h-64 overflow-hidden"><img src="https://images.unsplash.com/photo-1526392060635-9d6019884377?w=1200&q=80" alt="Machu Picchu" class="w-full h-full object-cover"></div>
-                <div class="p-5"><p class="text-sm mb-4">"Sueño cumplido. Encontré vuelo directo desde Managua a excelente precio."</p><div class="flex text-gray-500 text-sm border-t pt-3"><button onclick="toggleLike(this)" class="hover:text-red-500"><i class="far fa-heart mr-1"></i><span>56</span></button><span class="ml-4"><i class="far fa-comment mr-1"></i>12</span></div></div>
+        function postHTML(p) {
+            return `<article class="bg-white rounded-2xl shadow-sm border overflow-hidden social-post card-hover">
+                <div class="p-4 flex justify-between"><div class="flex items-center space-x-3"><div class="w-11 h-11 rounded-full bg-${p.color}-100 flex items-center justify-center font-bold text-${p.color}-600">${p.initials}</div><div><p class="font-bold">${p.user}</p><p class="text-xs text-gray-500">${p.loc}</p></div></div><div class="text-yellow-400">${'<i class="fas fa-star"></i>'.repeat(p.stars)}${p.stars<5?'<i class="far fa-star"></i>':''}</div></div>
+                <div class="h-64 overflow-hidden"><img src="${p.img}" alt="${p.loc}" class="w-full h-full object-cover"></div>
+                <div class="p-5"><p class="text-sm mb-4">"${p.text}"</p><div class="flex text-gray-500 text-sm border-t pt-3"><button onclick="toggleLike(this)" class="hover:text-red-500"><i class="far fa-heart mr-1"></i><span>${p.likes}</span></button><button class="ml-4 hover:text-blue-600"><i class="far fa-comment mr-1"></i>${Math.floor(p.likes/3)}</button></div></div>
             </article>`;
         }
 
-        function homeSidebar() {
-            return `<div><h2 class="text-2xl font-bold text-gray-800 mb-5">✨ Recomendaciones</h2><div class="space-y-4">${recomendacionCards()}</div></div>
+        function homeSidebarHTML() {
+            return `<div><h2 class="text-2xl font-bold text-gray-800 mb-5">✨ Recomendaciones</h2><div class="space-y-4">${APP.allPackages.slice(0,3).map(p=>`<div class="group relative rounded-2xl overflow-hidden cursor-pointer card-hover shadow-md" onclick="openPackageModal(${p.id})"><img src="${p.img}" class="w-full h-48 object-cover group-hover:scale-110 transition duration-500"><div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div><div class="absolute bottom-4 left-4 text-white"><h3 class="font-bold text-lg">${p.name}</h3><p class="text-xs text-gray-200">${p.country} · Desde $${p.price}</p></div></div>`).join('')}</div>
             <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border"><div class="flex items-center space-x-2 mb-3"><div class="bg-green-500 w-3 h-3 rounded-full pulse-dot"></div><i class="fas fa-headset text-blue-600 text-2xl"></i></div><h3 class="font-bold text-blue-900 mb-2">Soporte 24/7</h3><p class="text-sm text-blue-800/80 mb-4">¿Necesitas ayuda? Nuestros asesores están listos.</p><button onclick="navigateTo('contacto')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow">Contactar</button></div>`;
         }
 
-        function recomendacionCards() {
-            return [
-                {img:"https://images.unsplash.com/photo-1533604131587-32c294752e83?w=600&q=80",title:"Isla de Ometepe",sub:"Nicaragua · Desde $120"},
-                {img:"https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?w=600&q=80",title:"Cancún",sub:"México · Desde $350"},
-                {img:"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22?w=600&q=80",title:"Patagonia",sub:"Argentina · Desde $580"}
-            ].map(c=>`<div class="group relative rounded-2xl overflow-hidden cursor-pointer card-hover shadow-md" onclick="navigateTo('paquetes')"><img src="${c.img}" class="w-full h-48 object-cover group-hover:scale-110 transition duration-500"><div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div><div class="absolute bottom-4 left-4 text-white"><h3 class="font-bold text-lg">${c.title}</h3><p class="text-xs text-gray-200">${c.sub}</p></div></div>`).join('');
-        }
-
-        function ofertasFlash() {
-            return `<div class="bg-red-50 border border-red-200 rounded-2xl p-6"><div class="flex flex-wrap items-center justify-between mb-4"><h3 class="text-xl font-bold text-red-800"><i class="fas fa-bolt text-yellow-500 mr-2"></i>Ofertas Flash</h3><div class="flex space-x-2 text-sm" id="countdown"><span class="countdown-number" id="countdown-hours">00</span><span>:</span><span class="countdown-number" id="countdown-mins">00</span><span>:</span><span class="countdown-number" id="countdown-secs">00</span></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-4"><div class="bg-white p-4 rounded-xl"><p class="font-bold">Vuelo a Cancún</p><p class="text-red-600 font-bold text-lg">$199</p></div><div class="bg-white p-4 rounded-xl"><p class="font-bold">Paquete a Perú</p><p class="text-red-600 font-bold text-lg">$520</p></div><div class="bg-white p-4 rounded-xl"><p class="font-bold">Hotel en Panamá</p><p class="text-red-600 font-bold text-lg">$89/noche</p></div></div></div>`;
+        function ofertasFlashHTML() {
+            return `<div class="bg-red-50 border border-red-200 rounded-2xl p-6"><div class="flex flex-wrap items-center justify-between mb-4"><h3 class="text-xl font-bold text-red-800"><i class="fas fa-bolt text-yellow-500 mr-2"></i>Ofertas Flash · Gana 2x Puntos Viajero</h3><div class="flex space-x-2 text-sm" id="countdown"><span class="countdown-number" id="countdown-hours">00</span><span>:</span><span class="countdown-number" id="countdown-mins">00</span><span>:</span><span class="countdown-number" id="countdown-secs">00</span></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-4"><div class="bg-white p-4 rounded-xl"><p class="font-bold">Vuelo a Cancún</p><p class="text-red-600 font-bold text-lg">$199</p><p class="text-xs">+500 puntos</p></div><div class="bg-white p-4 rounded-xl"><p class="font-bold">Paquete a Perú</p><p class="text-red-600 font-bold text-lg">$520</p><p class="text-xs">+1200 puntos</p></div><div class="bg-white p-4 rounded-xl"><p class="font-bold">Hotel en Panamá</p><p class="text-red-600 font-bold text-lg">$89/noche</p><p class="text-xs">+300 puntos</p></div></div></div>`;
         }
 
         function getExplorarHTML() {
-            return `<div class="bg-white border-b"><div class="max-w-7xl mx-auto px-4 py-8"><h1 class="text-3xl font-bold">Explorar destinos</h1></div></div><div class="max-w-7xl mx-auto px-4 py-10">${getDestinoCards()}</div>`;
+            return `<div class="bg-white border-b"><div class="max-w-7xl mx-auto px-4 py-8"><h1 class="text-3xl font-bold">Explorar destinos</h1></div></div><div class="max-w-7xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-4">${APP.citySuggestions.slice(0,8).map(c=>`<div class="bg-white p-4 rounded-xl shadow cursor-pointer" onclick="fillDestAndGo('${c}')">${c}</div>`).join('')}</div>`;
         }
-
-        function getDestinoCards() {
-            return ['Cancún, México','Bogotá, Colombia','Lima, Perú','Santiago, Chile','Buenos Aires, Argentina','Punta Cana, RD'].map(d=>`<div class="bg-white rounded-xl shadow-sm p-4 hover:shadow-md cursor-pointer" onclick="fillDestAndGo('${d}')">${d}</div>`).join('');
-        }
-
-        function fillDestAndGo(dest) { navigateTo('inicio'); setTimeout(()=>{ const inp=document.getElementById('dest-input'); if(inp) inp.value=dest; },200); }
 
         function getComunidadHTML() {
-            return `<div class="bg-white border-b"><div class="max-w-7xl mx-auto px-4 py-8"><h1 class="text-3xl font-bold">Comunidad Travesía Pinolera</h1></div></div><div class="max-w-4xl mx-auto px-4 py-10 space-y-8">${communityPosts()}</div>`;
+            return `<div class="bg-white border-b"><div class="max-w-7xl mx-auto px-4 py-8"><h1 class="text-3xl font-bold">Comunidad Travesía Pinolera</h1></div></div><div class="max-w-5xl mx-auto px-4 py-10 space-y-8">${APP.communityPosts.map(p=>postHTML(p)).join('')}</div>`;
         }
 
         function getPaquetesHTML() {
-            return `<div class="bg-white border-b"><div class="max-w-7xl mx-auto px-4 py-8"><h1 class="text-3xl font-bold">Paquetes de Viaje</h1></div></div><div class="max-w-7xl mx-auto px-4 py-10"><div class="grid grid-cols-1 md:grid-cols-3 gap-8">${paqueteCards()}</div><div class="mt-12">${ofertasFlash()}</div></div>`;
-        }
-
-        function paqueteCards() {
-            return [
-                {name:"Aventura en Ometepe",price:120,img:"https://images.unsplash.com/photo-1533604131587-32c294752e83?w=600&q=80"},
-                {name:"Paraíso Cancún",price:350,img:"https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?w=600&q=80"},
-                {name:"Misterios de Machu Picchu",price:580,img:"https://images.unsplash.com/photo-1526392060635-9d6019884377?w=600&q=80"}
-            ].map(p=>`<div class="bg-white rounded-2xl shadow-sm overflow-hidden card-hover"><img src="${p.img}" class="w-full h-48 object-cover"><div class="p-5"><h3 class="font-bold text-lg">${p.name}</h3><p class="text-blue-600 font-bold text-xl">$${p.price}</p><button class="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg">Reservar</button></div></div>`).join('');
+            return `<div class="bg-white border-b"><div class="max-w-7xl mx-auto px-4 py-8"><h1 class="text-3xl font-bold">Paquetes de Viaje</h1></div></div><div class="max-w-7xl mx-auto px-4 py-10"><div class="grid grid-cols-1 md:grid-cols-3 gap-8">${APP.allPackages.map(p=>`<div class="bg-white rounded-2xl shadow-sm overflow-hidden card-hover"><img src="${p.img}" class="w-full h-48 object-cover"><div class="p-5"><h3 class="font-bold text-lg">${p.name}</h3><p class="text-sm text-gray-500">${p.country}</p><ul class="text-xs text-gray-600 mt-2 space-y-1">${p.includes.slice(0,2).map(i=>`<li>✅ ${i}</li>`).join('')}</ul><p class="text-blue-600 font-bold text-xl mt-3">$${p.price}</p><button onclick="openPackageModal(${p.id})" class="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg">Ver Detalles</button></div></div>`).join('')}</div></div>`;
         }
 
         function getContactoHTML() {
@@ -328,11 +325,11 @@
             </div>`;
         }
 
-        // ----------------- Buscadores -----------------
+        // ============ BUSCADORES ============
         function initHome() {
             const tabs = document.getElementById('search-tabs');
             if(tabs) {
-                tabs.querySelectorAll('.tab-btn').forEach(btn => {
+                tabs.querySelectorAll('.tab-btn').forEach(btn=>{
                     btn.addEventListener('click', function(){
                         tabs.querySelectorAll('.tab-btn').forEach(b=>{b.classList.remove('tab-active');b.classList.add('text-gray-500');});
                         this.classList.add('tab-active');this.classList.remove('text-gray-500');
@@ -348,281 +345,196 @@
         function renderSearchForm(tab) {
             const container = document.getElementById('search-form-content');
             const today = new Date().toISOString().split('T')[0];
-            container.innerHTML = '';
-            switch(tab) {
-                case 'vuelos':
-                    container.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Origen</label><input type="text" id="origin-input" placeholder="Managua (MGA)" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="origin-suggestions" class="suggestions-box hidden"></div></div>
-                        <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Destino</label><input type="text" id="dest-input" placeholder="¿A dónde?" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="dest-suggestions" class="suggestions-box hidden"></div></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha ida</label><input type="date" id="departure-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha vuelta</label><input type="date" id="return-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Adultos</label><select id="adults-count" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Niños</label><select id="children-count" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>0</option><option>1</option><option>2</option><option>3</option></select></div>
-                        <div class="lg:col-span-2 flex items-end"><button onclick="searchFlights()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl hover:bg-orange-600 shadow">BUSCAR VUELOS</button></div>
-                    </div>`;
-                    setupAutocomplete('origin-input','origin-suggestions');
-                    setupAutocomplete('dest-input','dest-suggestions');
-                    break;
-                case 'hoteles':
-                    container.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Destino</label><input type="text" id="hotel-dest-input" placeholder="Ciudad o zona" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="hotel-dest-suggestions" class="suggestions-box hidden"></div></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Check-in</label><input type="date" id="checkin-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Check-out</label><input type="date" id="checkout-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div class="flex items-end md:col-span-3"><button onclick="searchHotels()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">BUSCAR HOTEL</button></div>
-                    </div>`;
-                    setupAutocomplete('hotel-dest-input','hotel-dest-suggestions');
-                    break;
-                case 'paquetes':
-                    container.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Interés</label><select id="package-interest" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>Playa</option><option>Aventura</option><option>Cultural</option></select></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Duración</label><select id="package-duration" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>3-5 días</option><option>1 semana</option><option>2 semanas</option></select></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Presupuesto máx.</label><input type="number" id="package-budget" placeholder="$500" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div class="flex items-end md:col-span-3"><button onclick="searchPackages()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">VER PAQUETES</button></div>
-                    </div>`;
-                    break;
-                case 'autos':
-                    container.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Lugar de recogida</label><input type="text" id="auto-pickup-input" placeholder="Aeropuerto o ciudad" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="auto-pickup-suggestions" class="suggestions-box hidden"></div></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha recogida</label><input type="date" id="auto-pickup-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha devolución</label><input type="date" id="auto-return-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
-                        <div class="flex items-end md:col-span-3"><button onclick="searchCars()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">BUSCAR AUTO</button></div>
-                    </div>`;
-                    setupAutocomplete('auto-pickup-input','auto-pickup-suggestions');
-                    break;
+            if(tab==='vuelos') {
+                container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Origen</label><input type="text" id="origin-input" placeholder="Managua (MGA)" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="origin-suggestions" class="suggestions-box hidden"></div></div>
+                    <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Destino</label><input type="text" id="dest-input" placeholder="¿A dónde?" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="dest-suggestions" class="suggestions-box hidden"></div></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha ida</label><input type="date" id="departure-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha vuelta</label><input type="date" id="return-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Adultos</label><select id="adults-count" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>1</option><option>2</option><option>3</option></select></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Niños</label><select id="children-count" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>0</option><option>1</option><option>2</option></select></div>
+                    <div class="lg:col-span-2 flex items-end"><button onclick="searchFlights()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">BUSCAR VUELOS</button></div></div>`;
+                setupAutocomplete('origin-input','origin-suggestions');
+                setupAutocomplete('dest-input','dest-suggestions');
+            } else if(tab==='hoteles') {
+                container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Destino</label><input type="text" id="hotel-dest-input" placeholder="Ciudad o zona" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="hotel-dest-suggestions" class="suggestions-box hidden"></div></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Check-in</label><input type="date" id="checkin-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Check-out</label><input type="date" id="checkout-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div class="flex items-end md:col-span-3"><button onclick="searchHotels()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">BUSCAR HOTEL</button></div></div>`;
+                setupAutocomplete('hotel-dest-input','hotel-dest-suggestions');
+            } else if(tab==='paquetes') {
+                container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Interés</label><select id="package-interest" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>Playa</option><option>Aventura</option><option>Cultural</option></select></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Duración</label><select id="package-duration" class="w-full border rounded-xl p-3.5 bg-gray-50"><option>3-5 días</option><option>1 semana</option></select></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Presupuesto máx.</label><input type="number" id="package-budget" placeholder="$500" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div class="flex items-end md:col-span-3"><button onclick="searchPackages()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">VER PAQUETES</button></div></div>`;
+            } else if(tab==='autos') {
+                container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="relative"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Lugar de recogida</label><input type="text" id="auto-pickup-input" placeholder="Aeropuerto o ciudad" class="w-full border rounded-xl p-3.5 bg-gray-50" autocomplete="off"><div id="auto-pickup-suggestions" class="suggestions-box hidden"></div></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha recogida</label><input type="date" id="auto-pickup-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha devolución</label><input type="date" id="auto-return-date" min="${today}" class="w-full border rounded-xl p-3.5 bg-gray-50"></div>
+                    <div class="flex items-end md:col-span-3"><button onclick="searchCars()" class="w-full bg-orange-500 text-white font-bold py-4 rounded-xl">BUSCAR AUTO</button></div></div>`;
+                setupAutocomplete('auto-pickup-input','auto-pickup-suggestions');
             }
         }
 
-        function setupAutocomplete(inputId, suggestionsId) {
+        function setupAutocomplete(inputId, boxId) {
             const input = document.getElementById(inputId);
-            const box = document.getElementById(suggestionsId);
+            const box = document.getElementById(boxId);
             if(!input||!box) return;
-            input.addEventListener('input', function(){
-                const val = this.value.toLowerCase();
+            input.addEventListener('input', ()=>{
+                const val = input.value.toLowerCase();
                 if(val.length<1){box.classList.add('hidden');return;}
-                const filtered = APP.citySuggestions.filter(c=>c.toLowerCase().includes(val));
-                box.innerHTML = filtered.map(c=>`<div class="suggestion-item" onclick="selectSuggestion('${inputId}','${c}','${suggestionsId}')">${c}</div>`).join('');
-                box.classList.toggle('hidden', filtered.length===0);
+                box.innerHTML = APP.citySuggestions.filter(c=>c.toLowerCase().includes(val)).map(c=>`<div class="suggestion-item" onclick="selectSuggestion('${inputId}','${c}','${boxId}')">${c}</div>`).join('');
+                box.classList.toggle('hidden', box.children.length===0);
             });
             document.addEventListener('click',(e)=>{if(!input.contains(e.target)&&!box.contains(e.target))box.classList.add('hidden');});
         }
 
-        function selectSuggestion(inputId, value, boxId) {
-            document.getElementById(inputId).value = value;
-            document.getElementById(boxId).classList.add('hidden');
-        }
+        function selectSuggestion(inputId,val,boxId){document.getElementById(inputId).value=val;document.getElementById(boxId).classList.add('hidden');}
 
-        // Vuelos
         function searchFlights() {
-            const origin = document.getElementById('origin-input')?.value.trim();
-            const dest = document.getElementById('dest-input')?.value.trim();
-            const depDate = document.getElementById('departure-date')?.value;
-            const retDate = document.getElementById('return-date')?.value;
-            const adults = parseInt(document.getElementById('adults-count')?.value)||1;
-            const children = parseInt(document.getElementById('children-count')?.value)||0;
+            const origin=document.getElementById('origin-input')?.value.trim();
+            const dest=document.getElementById('dest-input')?.value.trim();
+            const depDate=document.getElementById('departure-date')?.value;
             if(!origin||!dest||!depDate){alert('Completa origen, destino y fecha de ida.');return;}
-            if(retDate && retDate < depDate){alert('La fecha de vuelta no puede ser anterior a la ida.');return;}
-            const classes = [{name:'Económica',factor:1},{name:'Business',factor:2.5},{name:'Ejecutiva',factor:1.8}];
+            const adults=parseInt(document.getElementById('adults-count')?.value)||1;
+            const children=parseInt(document.getElementById('children-count')?.value)||0;
             const flights = [];
             for(let i=0;i<4;i++){
-                const airline = mockAirlines[Math.floor(Math.random()*mockAirlines.length)];
-                const basePrice = Math.floor(Math.random()*300)+150;
-                const stops = Math.floor(Math.random()*3);
-                const durationH = 2+Math.floor(Math.random()*8);
-                const durationM = Math.floor(Math.random()*60);
-                const cls = classes[Math.floor(Math.random()*classes.length)];
-                flights.push({
-                    airline:airline.name, flightNo:airline.code+(Math.floor(Math.random()*900)+100),
-                    origin:origin.split(',')[0], destination:dest.split(',')[0],
-                    depDate, retDate:retDate||'No especificada', adults, children,
-                    duration:`${durationH}h ${durationM}m`, stops, class:cls.name,
-                    price:Math.round(basePrice*cls.factor*(adults+children*0.7))
-                });
+                const a=APP.mockAirlines[i%APP.mockAirlines.length];
+                flights.push({type:'vuelo',name:`${a.name} ${a.code}${100+i}`,price:Math.round((150+Math.random()*200)*(adults+children*0.7)),origin:origin.split(',')[0],dest:dest.split(',')[0],date:depDate});
             }
             APP.searchResults = flights;
-            renderResults('vuelos', flights);
+            renderResults('vuelos');
         }
 
-        // Hoteles
         function searchHotels() {
-            const dest = document.getElementById('hotel-dest-input')?.value.trim();
-            const checkin = document.getElementById('checkin-date')?.value;
-            const checkout = document.getElementById('checkout-date')?.value;
-            if(!dest||!checkin){alert('Completa destino y fecha de entrada.');return;}
-            if(checkout && checkout < checkin){alert('Check-out debe ser posterior al check-in.');return;}
-            const hotels = APP.mockHotels.filter(h=>h.location.toLowerCase().includes(dest.split(',')[0].toLowerCase()));
-            if(hotels.length===0) hotels.push(...APP.mockHotels.slice(0,3)); // mostrar algunos si no coincide
-            renderResults('hoteles', hotels);
+            const dest = document.getElementById('hotel-dest-input')?.value.trim().toLowerCase();
+            if(!dest){alert('Ingresa un destino.');return;}
+            let hotels = APP.mockHotels.filter(h=>h.location.toLowerCase().includes(dest) || dest.includes(h.location.toLowerCase()));
+            if(hotels.length===0) hotels = APP.mockHotels.slice(0,3);
+            hotels = hotels.map(h=>({...h,type:'hotel',displayPrice:`$${h.price}/noche`}));
+            APP.searchResults = hotels;
+            renderResults('hoteles');
         }
 
-        // Paquetes
         function searchPackages() {
             const interest = document.getElementById('package-interest')?.value;
-            const budget = parseFloat(document.getElementById('package-budget')?.value) || 9999;
-            const packages = [
-                {name:"Cancún Todo Incluido", price:420, type:"Playa"},
-                {name:"Aventura en Ometepe", price:120, type:"Aventura"},
-                {name:"Machu Picchu Cultural", price:580, type:"Cultural"},
-                {name:"Riviera Maya Relax", price:550, type:"Playa"},
-                {name:"Selva Amazónica", price:380, type:"Aventura"}
-            ].filter(p=>p.type===interest && p.price<=budget);
-            renderResults('paquetes', packages);
+            const budget = parseFloat(document.getElementById('package-budget')?.value)||9999;
+            const packs = APP.allPackages.filter(p=> (interest==='Playa'&&p.name.includes('Cancún')||interest==='Aventura'&&(p.name.includes('Ometepe')||p.name.includes('Patagonia'))||interest==='Cultural'&&(p.name.includes('Machu')||p.name.includes('Cartagena'))) && p.price<=budget);
+            APP.searchResults = packs.map(p=>({...p,type:'paquete'}));
+            renderResults('paquetes');
         }
 
-        // Autos
         function searchCars() {
-            const pickup = document.getElementById('auto-pickup-input')?.value.trim();
-            const pickupDate = document.getElementById('auto-pickup-date')?.value;
-            const returnDate = document.getElementById('auto-return-date')?.value;
-            if(!pickup||!pickupDate){alert('Completa lugar y fecha de recogida.');return;}
-            const cars = APP.mockCars.map(c=>({...c, location:pickup.split(',')[0]}));
-            renderResults('autos', cars);
+            const pickup=document.getElementById('auto-pickup-input')?.value.trim();
+            if(!pickup){alert('Ingresa lugar de recogida.');return;}
+            const cars = APP.mockCars.map(c=>({...c,type:'auto',location:pickup.split(',')[0],displayPrice:`$${c.pricePerDay}/día`}));
+            APP.searchResults = cars;
+            renderResults('autos');
         }
 
-        function renderResults(type, items) {
-            const container = document.getElementById('search-results');
+        function renderResults(type) {
+            const container=document.getElementById('search-results');
             container.classList.remove('hidden');
-            let html = '';
-            if(type==='vuelos') {
-                html = `<h3 class="text-xl font-bold mb-4">${items.length} vuelos encontrados</h3><div class="space-y-4">${items.map((f,i)=>`
-                    <div class="bg-white border rounded-xl p-5 flex flex-wrap justify-between items-center">
-                        <div><p class="font-bold text-lg">${f.airline} ${f.flightNo}</p><p class="text-sm">${f.origin} → ${f.destination}</p><p class="text-sm">${f.depDate} ${f.retDate!=='No especificada'?'- '+f.retDate:''} · ${f.duration} · ${f.stops===0?'Directo':f.stops+' escala(s)'}</p><span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${f.class}</span></div>
-                        <div class="text-right"><p class="text-2xl font-bold text-blue-600">$${f.price}</p><button onclick="openPaymentModal(${i})" class="mt-2 bg-green-500 text-white px-4 py-2 rounded-lg font-bold">Reservar</button></div>
-                    </div>`).join('')}</div>`;
-            } else if(type==='hoteles') {
-                html = `<h3 class="text-xl font-bold mb-4">Hoteles encontrados</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${items.map(h=>`
-                    <div class="bg-white p-4 rounded-xl border"><p class="font-bold text-lg">${h.name}</p><p class="text-yellow-500">${'★'.repeat(h.stars)}</p><p class="text-sm text-gray-600">${h.location}</p><p class="text-xl font-bold text-blue-600">$${h.price}/noche</p></div>`).join('')}</div>`;
-            } else if(type==='paquetes') {
-                html = `<h3 class="text-xl font-bold mb-4">Paquetes disponibles</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${items.map(p=>`
-                    <div class="bg-white p-4 rounded-xl border"><p class="font-bold text-lg">${p.name}</p><p class="text-sm text-gray-600">${p.type}</p><p class="text-xl font-bold text-blue-600">$${p.price}</p></div>`).join('')}</div>`;
-            } else if(type==='autos') {
-                html = `<h3 class="text-xl font-bold mb-4">Vehículos disponibles</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${items.map(c=>`
-                    <div class="bg-white p-4 rounded-xl border"><p class="font-bold text-lg">${c.model}</p><p class="text-sm text-gray-600">${c.type} · ${c.location}</p><p class="text-xl font-bold text-blue-600">$${c.pricePerDay}/día</p></div>`).join('')}</div>`;
-            }
-            container.innerHTML = html;
+            let html = `<h3 class="text-xl font-bold mb-4">${APP.searchResults.length} resultados</h3><div class="space-y-4">`;
+            APP.searchResults.forEach((item,i)=>{
+                if(type==='vuelos') html+=`<div class="bg-white border rounded-xl p-5 flex justify-between"><div><p class="font-bold">${item.name}</p><p>${item.origin} → ${item.dest} · ${item.date}</p></div><div><p class="text-xl font-bold text-blue-600">$${item.price}</p><button onclick="openPaymentModal(${i})" class="bg-green-500 text-white px-4 py-2 rounded-lg">Reservar</button></div></div>`;
+                else if(type==='hoteles') html+=`<div class="bg-white border rounded-xl p-5 flex justify-between"><div><p class="font-bold">${item.name}</p><p>${item.location} · ${'★'.repeat(item.stars)}</p></div><div><p class="text-xl font-bold text-blue-600">${item.displayPrice}</p><button onclick="openPaymentModal(${i})" class="bg-green-500 text-white px-4 py-2 rounded-lg">Reservar</button></div></div>`;
+                else if(type==='paquetes') html+=`<div class="bg-white border rounded-xl p-5 flex justify-between"><div><p class="font-bold">${item.name}</p><p>${item.country}</p></div><div><p class="text-xl font-bold text-blue-600">$${item.price}</p><button onclick="openPaymentModal(${i})" class="bg-green-500 text-white px-4 py-2 rounded-lg">Reservar</button></div></div>`;
+                else if(type==='autos') html+=`<div class="bg-white border rounded-xl p-5 flex justify-between"><div><p class="font-bold">${item.model}</p><p>${item.type} · ${item.location}</p></div><div><p class="text-xl font-bold text-blue-600">${item.displayPrice}</p><button onclick="openPaymentModal(${i})" class="bg-green-500 text-white px-4 py-2 rounded-lg">Reservar</button></div></div>`;
+            });
+            container.innerHTML = html+'</div>';
         }
 
-        // ---------- Pasarela de pago ----------
-        function openPaymentModal(flightIndex) {
-            if(APP.searchResults) APP.selectedFlight = APP.searchResults[flightIndex];
+        // ============ PASARELA DE PAGO ============
+        function openPaymentModal(index) {
+            APP.selectedProduct = APP.searchResults[index];
             document.getElementById('payment-modal').classList.remove('hidden');
             document.getElementById('payment-modal').classList.add('flex');
             resetPaymentSteps();
         }
-        function closePaymentModal() {
-            document.getElementById('payment-modal').classList.add('hidden');
-            document.getElementById('payment-modal').classList.remove('flex');
-        }
-        function resetPaymentSteps() {
+        function closePaymentModal(){document.getElementById('payment-modal').classList.add('hidden');document.getElementById('payment-modal').classList.remove('flex');}
+        function resetPaymentSteps(){
             document.querySelectorAll('.payment-step').forEach(s=>s.classList.remove('active'));
             document.querySelector('.payment-step[data-step="1"]').classList.add('active');
-            document.getElementById('pay-name').value='';
-            document.getElementById('pay-last').value='';
-            document.getElementById('pay-email').value='';
-            document.getElementById('pay-phone').value='';
+            ['pay-name','pay-last','pay-email','pay-phone'].forEach(id=>document.getElementById(id).value='');
             document.getElementById('terms-check-payment').checked=false;
             updateStepDots(1);
         }
-        function updateStepDots(step) {
-            for(let i=1;i<=3;i++) document.getElementById(`step-dot-${i}`).classList.toggle('active', i===step);
-        }
-        function nextPaymentStep(step) {
-            if(step===2){
-                const name=document.getElementById('pay-name').value.trim();
-                const last=document.getElementById('pay-last').value.trim();
-                const email=document.getElementById('pay-email').value.trim();
-                if(!name||!last||!email){alert('Completa los datos del pasajero.');return;}
-                if(!email.includes('@')){alert('Correo inválido.');return;}
-            }
+        function updateStepDots(step){for(let i=1;i<=3;i++)document.getElementById(`step-dot-${i}`).classList.toggle('active',i===step);}
+        function nextPaymentStep(step){
+            if(step===2){const n=document.getElementById('pay-name').value.trim(),l=document.getElementById('pay-last').value.trim(),e=document.getElementById('pay-email').value.trim();if(!n||!l||!e){alert('Completa datos.');return;}}
             document.querySelectorAll('.payment-step').forEach(s=>s.classList.remove('active'));
             document.querySelector(`.payment-step[data-step="${step}"]`).classList.add('active');
             updateStepDots(step);
         }
-        function goToReview() {
+        function goToReview(){
             if(!document.getElementById('terms-check-payment').checked){alert('Debes aceptar los términos y condiciones.');return;}
-            const flight = APP.selectedFlight;
-            document.getElementById('payment-summary').innerHTML = `
-                <p><strong>Vuelo:</strong> ${flight.airline} ${flight.flightNo}</p>
-                <p><strong>Ruta:</strong> ${flight.origin} → ${flight.destination}</p>
-                <p><strong>Fechas:</strong> ${flight.depDate} / ${flight.retDate}</p>
-                <p><strong>Pasajeros:</strong> ${flight.adults} adulto(s), ${flight.children} niño(s)</p>
-                <p><strong>Clase:</strong> ${flight.class}</p>
-                <p class="text-xl font-bold mt-2">Total: $${flight.price}</p>`;
+            const p = APP.selectedProduct;
+            document.getElementById('payment-summary').innerHTML = `<p><strong>${p.type==='vuelo'?'Vuelo':p.type==='hotel'?'Hotel':p.type==='auto'?'Auto':'Paquete'}:</strong> ${p.name||p.model}</p>${p.origin?`<p>${p.origin} → ${p.dest}</p>`:''}<p class="text-xl font-bold">Total: ${p.price?`$${p.price}`:p.displayPrice}</p>`;
             document.querySelectorAll('.payment-step').forEach(s=>s.classList.remove('active'));
             document.querySelector('.payment-step[data-step="3"]').classList.add('active');
             updateStepDots(3);
         }
-        function confirmPayment() {
+        function confirmPayment(){
             document.querySelectorAll('.payment-step').forEach(s=>s.classList.remove('active'));
             document.querySelector('.payment-step[data-step="4"]').classList.add('active');
-            const email = document.getElementById('pay-email').value;
-            document.getElementById('success-email-msg').innerHTML = `Hemos enviado los boletos digitales a <strong>${email}</strong>.`;
+            document.getElementById('success-email-msg').innerHTML = `Compra exitosa. Hemos enviado los comprobantes a <strong>${document.getElementById('pay-email').value}</strong>.`;
         }
 
-        // Countdown
-        function initCountdowns() {
-            const el = document.getElementById('countdown');
-            if(!el) return;
-            const end = new Date(); end.setHours(end.getHours()+5);
-            const upd = ()=>{
-                const diff = end - new Date();
-                if(diff<=0){document.getElementById('countdown-hours').textContent='00';document.getElementById('countdown-mins').textContent='00';document.getElementById('countdown-secs').textContent='00';return;}
-                document.getElementById('countdown-hours').textContent=String(Math.floor(diff/3600000)).padStart(2,'0');
-                document.getElementById('countdown-mins').textContent=String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
-                document.getElementById('countdown-secs').textContent=String(Math.floor((diff%60000)/1000)).padStart(2,'0');
-            };
-            upd(); setInterval(upd,1000);
+        function openPackageModal(id) {
+            const p = APP.allPackages.find(p=>p.id===id);
+            if(!p) return;
+            APP.selectedProduct = {...p, type:'paquete'};
+            const modal = document.getElementById('package-modal');
+            if(!modal) {
+                // Si el modal no existe, lo creamos dinámicamente (por si acaso)
+                const div = document.createElement('div');
+                div.id = 'package-modal';
+                div.className = 'fixed inset-0 z-[80] hidden items-center justify-center modal-overlay';
+                div.innerHTML = `<div class="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl"><div class="flex justify-between"><h3></h3><button onclick="closePackageModal()">&times;</button></div><img id="pkg-img" class="w-full h-56 object-cover rounded-xl"><h4 id="pkg-country"></h4><p id="pkg-desc"></p><ul id="pkg-includes"></ul><span id="pkg-price"></span><button onclick="reservePackageFromModal()">Reservar Ahora</button></div>`;
+                document.body.appendChild(div);
+            }
+            document.getElementById('package-modal').classList.remove('hidden');
+            document.getElementById('package-modal').classList.add('flex');
+            document.getElementById('package-modal-title').textContent = p.name;
+            document.getElementById('package-modal-img').src = p.img;
+            document.getElementById('package-modal-country').textContent = p.country;
+            document.getElementById('package-modal-desc').textContent = p.desc;
+            document.getElementById('package-modal-includes').innerHTML = p.includes.map(i=>`<li>${i}</li>`).join('');
+            document.getElementById('package-modal-price').textContent = `$${p.price}`;
+        }
+        function closePackageModal(){document.getElementById('package-modal').classList.add('hidden');}
+        function reservePackageFromModal() {
+            closePackageModal();
+            openPaymentModal(0); // El producto ya está en selectedProduct
         }
 
-        // Chat
-        function initChat() {
-            const msg = document.getElementById('chat-messages');
-            if(msg && msg.children.length===0) msg.innerHTML='<p class="text-gray-500">Asistente: ¡Hola! Pregúntame sobre destinos, paquetes o vuelos.</p>';
+        function fillDestAndGo(dest){navigateTo('inicio');setTimeout(()=>{const i=document.getElementById('dest-input');if(i)i.value=dest;},200);}
+        function initCountdowns(){
+            const el=document.getElementById('countdown');if(!el)return;
+            const end=new Date();end.setHours(end.getHours()+5);
+            const upd=()=>{const diff=end-new Date();if(diff<=0){['hours','mins','secs'].forEach(u=>document.getElementById(`countdown-${u}`).textContent='00');return;}document.getElementById('countdown-hours').textContent=String(Math.floor(diff/3600000)).padStart(2,'0');document.getElementById('countdown-mins').textContent=String(Math.floor((diff%3600000)/60000)).padStart(2,'0');document.getElementById('countdown-secs').textContent=String(Math.floor((diff%60000)/1000)).padStart(2,'0');};
+            upd();setInterval(upd,1000);
         }
-        function sendChatMessage() {
-            const input=document.getElementById('chat-input'), msg=document.getElementById('chat-messages');
-            if(!input||!msg)return;
-            const userMsg=input.value.trim(); if(!userMsg)return;
-            msg.innerHTML+=`<p class="text-blue-600 font-medium">Tú: ${userMsg}</p>`;
-            input.value='';
-            setTimeout(()=>{msg.innerHTML+=`<p class="text-gray-700">Asistente: ${getBotResponse(userMsg)}</p>`;msg.scrollTop=msg.scrollHeight;},500);
-        }
-        function getBotResponse(m){const l=m.toLowerCase();if(l.includes('paquete'))return 'Tenemos paquetes a Cancún desde $350.';if(l.includes('vuelo'))return '¡Busca vuelos en nuestro buscador!';return 'Gracias por escribir. Un asesor te contactará.';}
-
-        // Auth
+        function initChat(){const m=document.getElementById('chat-messages');if(m&&m.children.length===0)m.innerHTML='<p>Asistente: ¡Hola! Pregúntame.</p>';}
+        function sendChatMessage(){const i=document.getElementById('chat-input'),m=document.getElementById('chat-messages');if(!i||!m)return;const t=i.value.trim();if(!t)return;m.innerHTML+=`<p class="text-blue-600">Tú: ${t}</p>`;i.value='';setTimeout(()=>{m.innerHTML+=`<p>Asistente: ${getBotResponse(t)}</p>`;m.scrollTop=m.scrollHeight;},500);}
+        function getBotResponse(t){const l=t.toLowerCase();if(l.includes('paquete'))return 'Tenemos paquetes a Cancún desde $350.';if(l.includes('vuelo'))return 'Busca vuelos en el buscador principal.';return 'Un asesor te contactará pronto.';}
         function openAuthModal(){document.getElementById('auth-modal').classList.remove('hidden');document.getElementById('auth-modal').classList.add('flex');showLogin();}
-        function closeAuthModal(){document.getElementById('auth-modal').classList.add('hidden');document.getElementById('auth-modal').classList.remove('flex');}
-        function showLogin(){document.getElementById('auth-form-login').classList.remove('hidden');document.getElementById('auth-form-register').classList.add('hidden');document.getElementById('auth-title').textContent='Iniciar Sesión';}
-        function showRegister(){document.getElementById('auth-form-login').classList.add('hidden');document.getElementById('auth-form-register').classList.remove('hidden');document.getElementById('auth-title').textContent='Crear Cuenta';}
-        function handleLogin(){
-            const e=document.getElementById('login-email').value.trim(),p=document.getElementById('login-password').value;
-            if(!e||!p){alert('Completa los campos.');return;}
-            if(!e.includes('@')){alert('Correo inválido.');return;}
-            if(p.length<8){alert('Contraseña mín. 8 caracteres.');return;}
-            alert(`Bienvenido, ${e}.`);closeAuthModal();
-        }
-        function handleRegister(){
-            const n=document.getElementById('reg-name').value.trim(),e=document.getElementById('reg-email').value.trim(),p=document.getElementById('reg-password').value;
-            if(!n||!e||!p){alert('Completa todos los campos.');return;}
-            if(n.length<3){alert('Nombre muy corto.');return;}
-            if(!e.includes('@')){alert('Correo inválido.');return;}
-            if(!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(p)){alert('Contraseña: mín. 8 caracteres, 1 mayúscula y 1 número.');return;}
-            alert(`Cuenta creada para ${n}.`);closeAuthModal();
-        }
+        function closeAuthModal(){document.getElementById('auth-modal').classList.add('hidden');}
+        function showLogin(){document.getElementById('auth-form-login').classList.remove('hidden');document.getElementById('auth-form-register').classList.add('hidden');}
+        function showRegister(){document.getElementById('auth-form-login').classList.add('hidden');document.getElementById('auth-form-register').classList.remove('hidden');}
+        function handleLogin(){const e=document.getElementById('login-email').value.trim(),p=document.getElementById('login-password').value;if(!e||!p)return alert('Completa campos.');alert(`Bienvenido, ${e}.`);closeAuthModal();}
+        function handleRegister(){const n=document.getElementById('reg-name').value.trim(),e=document.getElementById('reg-email').value.trim(),p=document.getElementById('reg-password').value;if(!n||!e||!p)return alert('Completa campos.');alert(`Cuenta creada para ${n}.`);closeAuthModal();}
+        function toggleLike(btn){const icon=btn.querySelector('i'),span=btn.querySelector('span');let count=parseInt(span.textContent);if(icon.classList.contains('far')){icon.classList.remove('far');icon.classList.add('fas');icon.style.color='#ef4444';span.textContent=count+1;}else{icon.classList.remove('fas');icon.classList.add('far');icon.style.color='';span.textContent=count-1;}}
 
-        function toggleLike(btn){
-            const icon=btn.querySelector('i'),span=btn.querySelector('span');
-            let count=parseInt(span.textContent);
-            if(icon.classList.contains('far')){icon.classList.remove('far');icon.classList.add('fas');icon.style.color='#ef4444';span.textContent=count+1;}
-            else{icon.classList.remove('fas');icon.classList.add('far');icon.style.color='';span.textContent=count-1;}
-        }
-
-        document.getElementById('mobile-menu-btn').addEventListener('click',()=>document.getElementById('mobile-menu').classList.toggle('hidden'));
-        document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuthModal();});
-        document.getElementById('payment-modal').addEventListener('click',function(e){if(e.target===this)closePaymentModal();});
+        document.getElementById('mobile-menu-btn')?.addEventListener('click',()=>document.getElementById('mobile-menu').classList.toggle('hidden'));
+        document.getElementById('auth-modal')?.addEventListener('click',function(e){if(e.target===this)closeAuthModal();});
+        document.getElementById('payment-modal')?.addEventListener('click',function(e){if(e.target===this)closePaymentModal();});
+        document.getElementById('package-modal')?.addEventListener('click',function(e){if(e.target===this)closePackageModal();});
         navigateTo('inicio');
     </script>
 </body>
