@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travesía Pinolera | Vuelos y Viajes</title>
+    <!-- Tailwind para utilidades rápidas y FontAwesome para iconos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Navegación Minimalista -->
+    <nav class="nav-principal">
+        <div class="max-w-7xl mx-auto px-4 flex justify-between h-20 items-center">
+            <a href="#" class="flex items-center">
+                <img src="logo.png" alt="Travesía Pinolera" class="brand-logo">
+            </a>
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="#" class="menu-link">Explorar</a>
+                <a href="#" class="menu-link">Comunidad</a>
+                <button class="btn-negro">Iniciar Sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section estilo Booking -->
+    <header class="hero-section">
+        <div class="hero-content">
+            <h1>Tu próxima aventura empieza aquí</h1>
+            <p>Busca vuelos, hoteles y autos en un solo lugar.</p>
+        </div>
+
+        <!-- Caja de Búsqueda Estilo Kayak -->
+        <div class="search-container">
+            <div class="search-tabs">
+                <button class="tab-btn active" data-type="vuelos"><i class="fas fa-plane"></i> Vuelos</button>
+                <button class="tab-btn" data-type="hoteles"><i class="fas fa-bed"></i> Hoteles</button>
+                <button class="tab-btn" data-type="autos"><i class="fas fa-car"></i> Autos</button>
+            </div>
+            
+            <div class="search-grid">
+                <div class="input-group">
+                    <label>Origen</label>
+                    <input type="text" id="origen" placeholder="Ciudad de salida">
+                </div>
+                <div class="input-group">
+                    <label>Destino</label>
+                    <input type="text" id="destino" placeholder="¿A dónde vas?">
+                </div>
+                <div class="input-group">
+                    <label>Fecha</label>
+                    <input type="date" id="fecha">
+                </div>
+                <button class="btn-buscar" id="btn-buscar">BUSCAR</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenedor de Resultados -->
+    <main class="max-w-7xl mx-auto px-4 py-10 w-full">
+        <div id="resultados" class="grid-resultados">
+            <!-- Los resultados de JS aparecerán aquí -->
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
